@@ -25,7 +25,7 @@ LD_FILE=${DATA_DIR}/identity.10.ld
 M=10
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
-ITS=1000
+ITS=100
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}

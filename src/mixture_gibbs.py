@@ -18,12 +18,14 @@ def compute_sigma_e(p_vec, sigma_vec, M, N):
     sigma_e = (1-sigma_g)/float(N)
     return sigma_e
 
-def compute_km_denom(mu_km_vec, sigma_km_vec, sigma_vec, p_vec):
+def compute_km_denom(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec):
     sum = 0
     K = len(mu_km_vec)
     for k in range(0,K):
+        sigma_k = sigma_vec[k]
+        mu_k = mu_vec[k]
         var_term = np.sqrt(sigma_km_vec[k]/sigma_vec[k])
-        mean_term = np.exp((1/2*sigma_km_vec[k])*(mu_km_vec[k]**2))
+        mean_term = np.exp((1/(2*sigma_km_vec[k]))*(mu_km_vec[k]**2) - (1/(2*sigma_k)*(mu_k**2)))
         sum += p_vec[k]*var_term*mean_term
 
     return sum
@@ -41,15 +43,20 @@ def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, C_t, gamma_t, sigma_e
         mu_k = mu_vec[k]
         sigma_k = sigma_vec[k]
         C_k = C_t[:,k]
-        gamma_k = gamma_t[:, k]
-        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, C_k, gamma_k, sigma_e)
+        gamma_k = gamma_t
+        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_k, sigma_e)
+
+    #print mu_km_vec
+
+    q_km_denom = compute_km_denom(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec)
 
     for k in range(0, K):
         var_term = np.sqrt(sigma_km_vec[k]/sigma_vec[k])
-        mean_term = np.exp((1/2*sigma_km_vec[k])*(mu_km_vec[k]**2))
+        sigma_k = sigma_vec[k]
+        mu_k = mu_vec[k]
+        mean_term = np.exp((1/(2*sigma_km_vec[k]))*(mu_km_vec[k]**2) - (1/(2*sigma_k)*(mu_k**2)))
 
         q_km_num = p_vec[k]*var_term*mean_term
-        q_km_denom = compute_km_denom(mu_km_vec, sigma_km_vec, sigma_vec, p_vec)
 
         q_km = q_km_num/q_km_denom
         q_vec[k] = q_km
@@ -57,24 +64,26 @@ def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, C_t, gamma_t, sigma_e
     return q_vec
 
 
-def dp_term(m, A, gamma_k, C_k):
+def dp_term(m, A, gamma_k):
     sum = 0
-    nonzero_inds = np.nonzero(C_k)[0]
+    nonzero_inds = np.nonzero(gamma_k)[0]
     for i in nonzero_inds:
-        if i!=m:
-            sum += A[i,m] * gamma_k[i]*C_k[i]
+        if i != m:
+            sum += A[i,m] * gamma_k[i]
     return sum
 
 
-def compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, C_k, gamma_k, sigma_e):
+def compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_k, sigma_e):
 
     sigma_km = 1/(1/sigma_k + 1/sigma_e * A[m,m])
 
     term1 = (sigma_km*mu_k)/sigma_k
     term2 = sigma_km*sigma_e
-    term3 = psi_m - dp_term(m, A, gamma_k, C_k)
+    dp = dp_term(m, A, gamma_k)
+    term3 = psi_m - dp
     mu_km = term1 + term2*term3
 
+    #print "mu_km - SNP %d: %.4g" % (m, mu_km )
     return mu_km, sigma_km
 
 
@@ -99,26 +108,25 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, 
     logging.info("Starting sampler")
     for i in range(0, its):
         for m in range(0, M):
+
             for k in range(0, K):
                 # compute posterior mean and variance
                 sigma_e = compute_sigma_e(p_t, sigma_vec, M, N)
-                mu_km, sigma_km = compute_mu_sigma_km(m, mu_vec[k], sigma_vec[k], psi[m], A, C_t[:,k], gamma_t[:,k], sigma_e)
+                mu_km, sigma_km = compute_mu_sigma_km(m, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, sigma_e)
 
                 gamma_km[k] = st.norm.rvs(mu_km, sigma_km)
 
-                # sample mixture assignments
+            # sample mixture assignments
+            #print "SNP %d" % m
             q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, C_t, gamma_t, sigma_e)
-            logging.info("q_km: ")
-            print q_km
+            #print q_km
             C  = st.multinomial.rvs(n=1, p=q_km, size=1)
-
-            #gamma_t[m,k]
+            #print C
+            gamma_t[m] = np.sum(np.multiply(C, gamma_km))
+            #print gamma_t[m]
 
             # end loop through K clusters
         # end loop through SNPs
-
-        # sample p_vec
-        C_prop = np.sum(C_t, axis=0)
 
         alpha = np.sum(C_t, axis=0)
         p_t = st.dirichlet.rvs(alpha)
@@ -154,25 +162,24 @@ def precompute_terms(W, beta_tilde, name, outdir):
 def initialize_p(K):
     # random draw to initialize values
     p_init = np.random.dirichlet([1]*K,1)
-    return p_init.ravel()
+    p_init = p_init.ravel()
+    #p_init = [.5, .5]
+    return p_init
 
 
-def initialize_gamma(mu_vec, sigma_vec, M):
+def initialize_C_gamma(p_init, mu_vec, sigma_vec, M):
     # create empty array to hold values
     K = len(mu_vec)
     gamma_init = np.empty((M,K))
 
+    C_init = np.random.multinomial(n=1, pvals=p_init, size=M)
+
     for k in range(0, K):
         gamma_init[:, k] = st.norm.rvs(mu_vec[k], sigma_vec[k], size=M)
 
-    return gamma_init
+    gamma_init = np.sum(np.multiply(gamma_init, C_init), axis=1)
 
-
-def initialize_C(p_init, M):
-    # create empty array to hold values
-    C_init = np.random.multinomial(n=1, pvals=p_init, size=M)
-
-    return C_init
+    return C_init, gamma_init
 
 
 def main():
@@ -244,12 +251,8 @@ def main():
     print(p_init)
 
     logging.info("initializing gamma_k")
-    gamma_init = initialize_gamma(mu_vec, sigma_vec, M)
-
     logging.info("initializing C_k")
-    C_init = initialize_C(p_init, M)
-    C_prop  = np.sum(C_init, axis=0)
-    print C_prop
+    C_init, gamma_init = initialize_C_gamma(p_init, mu_vec, sigma_vec, M)
 
     p_est = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, N, its)
     print "Estimate: "
