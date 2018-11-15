@@ -45,9 +45,9 @@ def simulate_mixture(p_vec, mu_vec, sigma_vec, M, N, V):
 def main():
     parser = OptionParser()
     parser.add_option("--name", dest="name", default="sim")
-    parser.add_option("--p_vec", dest="p_vec", nargs='+', default=".25 .25 .50")
-    parser.add_option("--mu_vec", dest="mu_vec", nargs='+', default="-.10 0 .10")
-    parser.add_option("--sigma_vec", dest="sigma_vec", nargs="+", default=".001 .001 .001")
+    parser.add_option("--p_vec", dest="p_vec", default=".25 .25 .50")
+    parser.add_option("--mu_vec", dest="mu_vec", default="-.10 0 .10")
+    parser.add_option("--sigma_vec", dest="sigma_vec", default=".001 .001 .001")
     parser.add_option("--bins", dest="bins")
     parser.add_option("--ld_file", dest="ld_file")
     parser.add_option("--M", dest="M", default=10)
@@ -59,9 +59,9 @@ def main():
 
     # parse input options
     if options.bins is None:
-        p_vec= [float(item) for item in options.p_vec.split()]
-        mu_vec = [float(item) for item in options.mu_vec.split()]
-        sigma_vec = [float(item) for item in options.sigma_vec.split()]
+        p_vec= [float(item) for item in options.p_vec.split(',')]
+        mu_vec = [float(item) for item in options.mu_vec.split(',')]
+        sigma_vec = [float(item) for item in options.sigma_vec.split(',')]
     else:
         bins = int(bins)
 

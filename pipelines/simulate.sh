@@ -5,28 +5,32 @@
 STEPS=$1
 
 # default is all steps 
-if [ -z "$STEPS"]
+if [ -z "$STEPS" ]
+then
 	STEPS="1,2,3,4"
+fi 
+
+# path to folder 
+MASTER_PATH=/Users/ruthiejohnson/Development/unity_mixture
+SCRIPT_DIR=${MASTER_PATH}/scripts 
+SRC_DIR=${MASTER_PATH}/src 
+DATA_DIR=${MASTER_PATH}/data 
 
 # simulation params 
 SIM_NAME=test_identity 
-P_VEC=".25 .25 .50"
-MU_VEC="-.10 0 .10"
-SIGMA_VEC=".001 .001 .001"
+P_VEC=".50,.50"
+MU_VEC="-.10,.10"
+SIGMA_VEC=".0001,.0001"
 LD_FILE=${DATA_DIR}/identity.100.ld 
 M=100 
 N=100000
-SEED=2018 # can replace with SGE_TASK_ID 
+SEED=2018 # can replace with SGE_TASK_ID
+ITS=10
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
 
 # global paths 
-
-# path to folder 
-MASTER_PATH=/Users/ruthiejohnson/Development/unity_mixture
-SCRIPT_DIR=${MASTER_PATH}/scripts 
-DATA_DIR=${MASTER_PATH}/data 
 
 # Hoffman paths 
 #source /u/local/Modules/default/init/modules.sh
@@ -44,12 +48,12 @@ then
 fi
 
 # STEP 2: transform betas 
+GWAS_FILE=${DATA_DIR}/${SIM_NAME}.${SEED}.txt 
 if [[ "$STEPS" =~ "2" ]]
 then
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
 	echo $DATE" Transforming GWAS effect sizes"
-	GWAS_FILE=${DATA_DIR}/${SIM_NAME}.${SEED}.txt 
-	python ${SCRIPT_DIR}/transform_betas.py --gwas_file --ld_file $LD_FILE
+	python ${SCRIPT_DIR}/transform_betas.py --gwas_file $GWAS_FILE --ld_file $LD_FILE
 fi 
 
 
@@ -59,5 +63,14 @@ then
 	python ${SCRIPT_DIR}/half_ld.py --ld_file $LD_FILE
 fi
 
+
 # STEP 4: run inference 
+if [[ "$STEPS" =~ "4" ]]
+then
+	LD_HALF_FILE=${LD_FILE%.*}.half_ld
+	python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'n' --its $ITS 
+fi 
+
+
+
 
