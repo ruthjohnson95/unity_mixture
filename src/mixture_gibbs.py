@@ -11,11 +11,22 @@ import pandas as pd
 # global variables
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
+def log_likelihood(beta_tilde, gamma, sigma_e, W):
+    M = len(beta_tilde)
+    mu = np.multiply(W, gamma)
+    cov = np.multiply(np.eye(M), sigma_e)
+    print beta_tilde.shape
+    print mu.shape
+    print cov.shape
+    st.multivariate_normal.logpdf(x=beta_tilde, mean=mu, cov=cov)
+    return log_like
+
 
 def compute_sigma_e(p_vec, sigma_vec, M, N):
     M_k = np.multiply(M, p_vec)
     sigma_g = np.sum(np.multiply(M_k, sigma_vec))
     sigma_e = (1-sigma_g)/float(N)
+    sigma_e = 1/float(N)
     return sigma_e
 
 def compute_km_denom(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec):
@@ -121,6 +132,14 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, 
             q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, C_t, gamma_t, sigma_e)
             #print q_km
             C  = st.multinomial.rvs(n=1, p=q_km, size=1)
+
+            # update C_t
+            C = C.ravel()
+
+            for k in range(0,K):
+            #    C_t[m,k] = C[k]
+                C_t[m,k] = C[k]
+
             #print C
             gamma_t[m] = np.sum(np.multiply(C, gamma_km))
             #print gamma_t[m]
@@ -128,12 +147,15 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, 
             # end loop through K clusters
         # end loop through SNPs
 
-        alpha = np.sum(C_t, axis=0)
+        alpha = np.add(np.sum(C_t, axis=0), np.ones(K))
         p_t = st.dirichlet.rvs(alpha)
         p_t = p_t.ravel()
         p_list.append(p_t)
 
-        logging.info("Iteration %d:" % i)
+        sigma_e = compute_sigma_e(p_t, sigma_vec, M, N)
+        #log_like = log_likelihood(beta_tilde, gamma_t, sigma_e, W)
+        log_like = 0
+        logging.info("Iteration %d - log_like: %.4g" % (i, log_like))
         print p_t
 
     # end loop iterations

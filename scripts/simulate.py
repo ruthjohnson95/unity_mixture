@@ -25,12 +25,15 @@ def simulate_mixture(p_vec, mu_vec, sigma_vec, M, N, V):
     # only pick betas from chosen components
     beta_k = np.multiply(beta_k_matrix,  k_matrix)
 
+    print np.divide(np.sum(k_matrix, axis=0), float(M))
+
     beta = np.sum(beta_k, axis=1)
 
     # sample GWAS effects
     M_k = np.multiply(M, p_vec)
     sigma_g = np.sum(np.multiply(M_k, sigma_vec))
-    sigma_e = (1-sigma_g)/float(N)
+    #sigma_e = (1-sigma_g)/float(N)
+    sigma_e = 1/float(N)
     mu = np.matmul(V, beta)
     cov = np.multiply(V, sigma_e)
 
@@ -63,7 +66,29 @@ def main():
         mu_vec = [float(item) for item in options.mu_vec.split(',')]
         sigma_vec = [float(item) for item in options.sigma_vec.split(',')]
     else:
-        bins = int(bins)
+        bins = int(options.bins)
+        p_vec= [float(item) for item in options.p_vec.split(',')]
+
+        if bins != len(p_vec):
+            logging.info("Error: number of bins does not equal mixing proportions...exiting")
+            exit(1)
+
+        # get LHS of bins
+        a = -1.0
+        b = 1.0
+        step = (b-a)/float(bins)
+        sigma_k = ((step*.5)/float(3))**2
+        sigma_vec = np.repeat(sigma_k, bins)
+        mu_vec = np.empty(bins)
+        for k in range(bins):
+            if k == 0:
+                mu_vec[k] = a + step*.50
+            else:
+                mu_vec[k] = mu_vec[k-1] + step
+
+        print sigma_vec
+        print mu_vec
+
 
     outname = options.name
     ld_file = options.ld_file
@@ -83,7 +108,11 @@ def main():
     if ld_file is None:
         V = np.eye(M)
     else:
-        V = np.loadtxt(ld_file)
+        try:
+            V = np.loadtxt(ld_file)
+        except:
+            logging.info("LD file does not exist...will simulate with no LD")
+            V = np.eye(M)
 
     beta_hats = simulate_mixture(p_vec, mu_vec, sigma_vec, M, N, V)
 
