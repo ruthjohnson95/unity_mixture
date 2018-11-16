@@ -1,4 +1,4 @@
-0;95;0c#!/usr/bin/env sh
+#!/usr/bin/env sh
 
 GWAS_FILE=$1 
 
@@ -33,4 +33,10 @@ LDSC_H2=$(cat ${DATA_DIR}/${TRAIT}.log | grep "Total Observed scale h2:" |  head
 #echo $LDSC_H2 
 
 python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $LDSC_H2
+
+# make all the plots 
+
+# regular histogram 
+
+# binned results 
 

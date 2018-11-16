@@ -7,11 +7,12 @@ STEPS=$1
 # default is all steps 
 if [ -z "$STEPS" ]
 then
-	STEPS="1,2,3,4"
+	STEPS="1,2,3,4,5,6,7"
 fi 
 
 # path to folder 
-MASTER_PATH=/u/home/r/ruthjohn/ruthjohn/bayesM_noLD/unity_mixture/
+#MASTER_PATH=/u/home/r/ruthjohn/ruthjohn/bayesM_noLD/unity_mixture
+MASTER_PATH=/Users/ruthiejohnson/Development/unity_mixture
 SCRIPT_DIR=${MASTER_PATH}/scripts 
 SRC_DIR=${MASTER_PATH}/src 
 DATA_DIR=${MASTER_PATH}/data 
@@ -35,8 +36,8 @@ echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
 # global paths 
 
 # Hoffman paths 
-source /u/local/Modules/default/init/modules.sh
-module load python/2.7
+#source /u/local/Modules/default/init/modules.sh
+#module load python/2.7
 
 # data will be output to DATA_DIR 
 mkdir -p $DATA_DIR 
@@ -76,8 +77,24 @@ then
 fi 
 
 
-# STEP 4: run inference (with NO LD)
+# STEP 5: run inference (with NO LD)
 if [[ "$STEPS" =~ "5" ]]
 then
 	python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $SIGMA_G 
 fi
+
+
+# Step 6: plot gwas effect size histogram 
+if [[ "$STEPS" =~ "6" ]]
+then
+	python ${SCRIPT_DIR}/plot_histogram.py --name $SIM_NAME --gwas_file $GWAS_FILE --outdir ${DATA_DIR}
+fi
+
+
+# Step 7: plot binned effect size histogram 
+if [[ "$STEPS" =~ "7" ]]
+then
+	RESULTS_FILE=${DATA_DIR}/${SIM_NAME}.${SEED}.results 
+	python ${SCRIPT_DIR}/plot_EM_histogram.py --name $SIM_NAME --results_file $RESULTS_FILE --outdir ${DATA_DIR}
+fi
+
