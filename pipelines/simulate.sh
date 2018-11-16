@@ -11,7 +11,7 @@ then
 fi 
 
 # path to folder 
-MASTER_PATH=/Users/ruthiejohnson/Development/unity_mixture
+MASTER_PATH=/u/home/r/ruthjohn/ruthjohn/bayesM_noLD/unity_mixture/
 SCRIPT_DIR=${MASTER_PATH}/scripts 
 SRC_DIR=${MASTER_PATH}/src 
 DATA_DIR=${MASTER_PATH}/data 
@@ -34,8 +34,8 @@ echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
 # global paths 
 
 # Hoffman paths 
-#source /u/local/Modules/default/init/modules.sh
-#module load python/2.7
+source /u/local/Modules/default/init/modules.sh
+module load python/2.7
 
 # data will be output to DATA_DIR 
 mkdir -p $DATA_DIR 

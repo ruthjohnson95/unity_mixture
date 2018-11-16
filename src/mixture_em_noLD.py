@@ -11,6 +11,8 @@ import pandas as pd
 # global variables
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
+MIN = -sys.maxsize -1
+
 def log_likelihood(beta_tilde, gamma, sigma_e, W):
     M = len(beta_tilde)
     mu = np.multiply(W, gamma)
@@ -46,16 +48,25 @@ def EM(p_t, mu_vec, sigma_vec, beta_tilde, N, its):
         for m in range(0, M):
             z = np.empty(K)
             for k in range(0, K):
-                z[k] = p_t[k]*st.norm.pdf(beta_tilde[m], mu_vec[k], sigma_vec[k] + sigma_e)
+                like = st.norm.pdf(beta_tilde[m], mu_vec[k], sigma_vec[k] + sigma_e)
+                if np.isnan(like):
+                    like = 0 
+                    logging.info("Encountered Nan!")
+                z[k] = p_t[k]*like
                 #print z[k]
+                
 
             for k in range(0, K):
-                r_mk = z[k]/np.sum(z)
+                if np.sum(z) > 0:
+                    r_mk = z[k]/np.sum(z)
+                else:
+                    r_mk = 0 
+
                 r_MK[m,k] = r_mk
 
         # Maximization step
         for k in range(0, K):
-            p_t[k] = np.sum(r_MK[:,k])/float(M)
+            p_t[k] = np.sum(r_MK[:,k])/np.sum(r_MK)
 
         print p_t
 
@@ -104,7 +115,8 @@ def main():
                 mu_vec[k] = a + step*.50
             else:
                 mu_vec[k] = mu_vec[k-1] + step
-
+        print mu_vec 
+        print sigma_vec
 
     logging.info("Reading in gwas file: %s" % gwas_file)
     df = pd.read_csv(gwas_file, sep=' ')
