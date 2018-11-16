@@ -1,4 +1,4 @@
-0;95;0c#!/usr/bin/env sh
+#!/usr/bin/env sh
 
 GWAS_FILE=$1 
 
@@ -10,7 +10,7 @@ DATA_DIR=${MASTER_PATH}/data
 
 # simulation params 
 SIM_NAME=height 
-TRAIT=$(basename $GWAS_FILE | cut -d'.' -f1)
+TRAIT=$(echo $GWAS_FILE | cut -d',' -f1)
 BINS=100
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
@@ -30,7 +30,7 @@ mkdir -p $DATA_DIR
 bash ${SCRIPT_DIR}/ldsc_h2.sh $GWAS_FILE $N $DATA_DIR  
 LDSC_H2=$(cat ${DATA_DIR}/${TRAIT}.log | grep "Total Observed scale h2:" |  head -n 1 | cut -d':' -f2 | cut -d'(' -f1 | awk '$1=$1' )
 
-#echo $LDSC_H2 
+echo $LDSC_H2 
 
-python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $LDSC_H2
+#python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $LDSC_H2
 

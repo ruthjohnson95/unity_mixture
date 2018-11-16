@@ -20,13 +20,14 @@ DATA_DIR=${MASTER_PATH}/data
 SIM_NAME=test_identity 
 P_VEC=".05,.05,.90"
 BINS=3
+SIGMA_G=.50 
 MU_VEC="0,0"
 SIGMA_VEC=".001,.1"
 LD_FILE=${DATA_DIR}/identity.1000.ld 
 M=1000
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
-ITS=10
+ITS=5
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
@@ -46,7 +47,7 @@ then
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
 	echo $DATE" Simulting GWAS effect sizes"
 	#python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR
-	python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --bins $BINS --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR
+	python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --bins $BINS --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR --sigma_g $SIGMA_G 
 fi
 
 # STEP 2: transform betas 
@@ -78,5 +79,5 @@ fi
 # STEP 4: run inference (with NO LD)
 if [[ "$STEPS" =~ "5" ]]
 then
-	python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS 
+	python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $SIGMA_G 
 fi

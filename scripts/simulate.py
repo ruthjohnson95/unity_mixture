@@ -11,7 +11,7 @@ import pandas as pd
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
 
-def simulate_mixture(p_vec, mu_vec, sigma_vec, M, N, V):
+def simulate_mixture(p_vec, mu_vec, sigma_vec, M, sigma_e, V):
     K = len(p_vec)
     k_matrix = np.random.multinomial(1, p_vec, size=M)
 
@@ -31,9 +31,6 @@ def simulate_mixture(p_vec, mu_vec, sigma_vec, M, N, V):
 
     # sample GWAS effects
     M_k = np.multiply(M, p_vec)
-    sigma_g = np.sum(np.multiply(M_k, sigma_vec))
-    #sigma_e = (1-sigma_g)/float(N)
-    sigma_e = 1/float(N)
     mu = np.matmul(V, beta)
     cov = np.multiply(V, sigma_e)
 
@@ -55,6 +52,7 @@ def main():
     parser.add_option("--ld_file", dest="ld_file")
     parser.add_option("--M", dest="M", default=10)
     parser.add_option("--N", dest="N", default=100000)
+    parser.add_option("--sigma_g", dest="sigma_g", default=.50)
     parser.add_option("--seed", dest="seed", default=100)
     parser.add_option("--outdir", dest="outdir", default="/Users/ruthiejohnson/Development/mixture_unity")
 
@@ -96,6 +94,7 @@ def main():
     N = int(options.N)
     seed = int(options.seed)
     outdir = options.outdir
+    sigma_g = float(options.sigma_g)
 
     # check that mixture components are same size
     if len(p_vec) == len(mu_vec) == len(sigma_vec):
@@ -114,7 +113,10 @@ def main():
             logging.info("LD file does not exist...will simulate with no LD")
             V = np.eye(M)
 
-    beta_hats = simulate_mixture(p_vec, mu_vec, sigma_vec, M, N, V)
+    # calculate sigma_e  
+    sigma_e = (1-sigma_g)/N
+
+    beta_hats = simulate_mixture(p_vec, mu_vec, sigma_vec, M, sigma_e, V)
 
     # save to outfile
     outfile = os.path.join(outdir, outname + '.' + str(seed) + '.txt')
