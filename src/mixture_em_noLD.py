@@ -129,8 +129,8 @@ def main():
         bins = int(options.bins)
 
         # get LHS of bins
-        a = -1.0
-        b = 1.0
+        a = -.50
+        b = .50 
         step = (b-a)/float(bins)
         sigma_k = ((step*.5)/float(3))**2
         sigma_vec = np.repeat(sigma_k, bins)

@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
+#!/usr/bin/env python
+import matplotlib
+matplotlib.use('Agg')
 from optparse import OptionParser
 import sys
 import numpy as np
 import os
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
+
+from matplotlib import pyplot as plt
+
 
 def main():
     parser = OptionParser()
@@ -35,6 +40,8 @@ def main():
     # save plot
     outfile=os.path.join(outdir, name + '.barplot.pdf')
     plt.title("Histogram of binned effect sizes - %s" % name, fontsize=15)
+    plt.xticks([])
+    plt.xlabel("0")
 
     plt.savefig(outfile)
 

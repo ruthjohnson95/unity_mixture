@@ -1,12 +1,14 @@
 #!/usr/bin/env python
-
+import matplotlib
+matplotlib.use('Agg')
 from optparse import OptionParser
 import sys
 import numpy as np
 import os
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
+
+from matplotlib import pyplot as plt
 
 def main():
     parser = OptionParser()
@@ -28,9 +30,10 @@ def main():
 
     # plot
     sns.set_style('whitegrid')
-    a = -1
-    b = 1
-    sns.distplot(beta_tilde, hist=True, kde=True, rug=False, hist_kws={"range": [a,b]})
+#    a = -.50
+#    b = .50
+#    sns.distplot(beta_tilde, hist=True, kde=True, rug=False, hist_kws={"range": [a,b]})
+    sns.distplot(beta_tilde, hist=True, kde=True, rug=False)
 
     # save plot
     outfile=os.path.join(outdir, name + '.hist.pdf')
