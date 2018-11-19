@@ -31,7 +31,7 @@ module load python/2.7
 mkdir -p $DATA_DIR 
 
 # make histogram 
-#python ${SCRIPT_DIR}/plot_histogram.py --name $SIM_NAME --gwas_file $GWAS_FILE --outdir ${DATA_DIR}
+python ${SCRIPT_DIR}/plot_histogram.py --name $SIM_NAME --gwas_file $GWAS_FILE --outdir ${DATA_DIR}
 
 # find H2 from LDSC 
 #bash ${SCRIPT_DIR}/ldsc_h2.sh $GWAS_FILE $N $DATA_DIR  
@@ -43,5 +43,5 @@ LDSC_H2=$(cat ${DATA_DIR}/${TRAIT}.log | grep "Total Observed scale h2:" |  head
 
 # make all the plots 
 RESULTS_FILE=${DATA_DIR}/${SIM_NAME}.${SEED}.results 
-python ${SCRIPT_DIR}/plot_EM_histogram.py --name $SIM_NAME --results_file $RESULTS_FILE --outdir ${DATA_DIR}
+#python ${SCRIPT_DIR}/plot_EM_histogram.py --name $SIM_NAME --results_file $RESULTS_FILE --outdir ${DATA_DIR}
 

@@ -28,20 +28,30 @@ def main():
         outdir=""
 
     # read in file
-    results_df = pd.read_csv(results_file, sep=' ')
+    df = pd.read_csv(results_file, sep=' ')
+
+    # remove zero entries 
+    mu = df['mu']
+    p = df['p']
+    nonzero_inds=np.nonzero(p)
+
+    mu = mu[nonzero_inds[0]]
+    p = p[nonzero_inds[0]]
+
+    df = {'mu': mu, 'p': p}
+    df_nonzero = pd.DataFrame(data=df)
+
 
     # plot
     sns.set_style('whitegrid')
-    a = -1
-    b = 1
 
-    results_df.plot.bar(x='mu', y='p', legend=False)
+    df_nonzero.plot.bar(x='mu', y='p', legend=False)
 
     # save plot
     outfile=os.path.join(outdir, name + '.barplot.pdf')
     plt.title("Histogram of binned effect sizes - %s" % name, fontsize=15)
-    plt.xticks([])
-    plt.xlabel("0")
+#    plt.xticks([])
+#    plt.xlabel("0")
 
     plt.savefig(outfile)
 
