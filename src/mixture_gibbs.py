@@ -17,10 +17,12 @@ import scipy.stats as st
 import os
 import pandas as pd
 import math
+from scipy.misc import logsumexp as logsumexp
 
 # global variables
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 EXP_MAX = math.log(sys.float_info.max)
+EXP_MIN = math.log(sys.float_info.min)
 
 def log_likelihood(beta_tilde, gamma, sigma_e, W):
     M = len(beta_tilde)
@@ -35,27 +37,56 @@ def compute_km_vec(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec):
     K = len(mu_km_vec)
     q_km_vec = np.empty(K)
 
+    a_vec = np.empty(K)
+    var_vec = np.empty(K)
+
+    # DEBUGGING
     for k in range(0,K):
         sigma_k = sigma_vec[k]
         mu_k = mu_vec[k]
         var_term = np.sqrt(sigma_km_vec[k]/sigma_vec[k])
-        temp_term = ( (1/(2*sigma_km_vec[k])) * (mu_km_vec[k]*mu_km_vec[k]) ) - (1/(2*sigma_k)*(mu_k*mu_k))
-        if temp_term > EXP_MAX:
-            temp_term = EXP_MAX
-        try:
-            mean_term = np.exp(temp_term)
+        temp_term_1 = .5 * 1 / float(sigma_km_vec[k]) * mu_km_vec[k] * mu_km_vec[k]
+        temp_term_2 = .5* 1/ float(sigma_k) * mu_k * mu_k
+        temp_term = temp_term_1 - temp_term_2
 
-        except:
-            print sigma_km_vec[k]
-            print compute_km_vec[k]
+        a_vec[k] = temp_term[0]
+        var_vec[k] = var_term[0]
+
+        """
+        #print temp_term
+        if temp_term > EXP_MAX:
+            print "EXP_MAX"
+            #print temp_term
+            #print "sigma_km: %.4g" % sigma_km_vec[k]
+            #print "sigma_k: %.4g" % sigma_k
+            temp_term = EXP_MAX
+        elif temp_term < EXP_MIN:
+            print "EXP_MIN"
+            #print temp_term
+            temp_term = EXP_MIN
+
+        mean_term = np.exp(temp_term)
 
 
         q_km_vec[k] = p_vec[k]*var_term*mean_term
+        """
+
+        # calculate q_km in log form
+        log_terms = np.empty(K)
+        for k in range(0, K):
+            print "var term: %.4g" % var_vec[k]
+            log_terms[k] = np.log(p_vec[k]) + np.log(var_vec[k]) + a_vec[k]
+
+        q_log_denom = logsumexp(log_terms)
+
+        for k in range(0, K):
+            q_log_num = np.log(p_vec[k]) + np.log(var_vec[k]) + a_vec[k]
+            q_km_vec[k] = np.exp(q_log_num - q_log_denom)
 
     return q_km_vec
 
 
-def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_C_t, sigma_e, W, beta_tilde):
+def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde):
 
     # holds means and variances across K components (NOT SNPs)
     K = len(mu_vec)
@@ -66,7 +97,7 @@ def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_C_t, sigma_e, W
     for k in range(0, K):
         mu_k = mu_vec[k]
         sigma_k = sigma_vec[k]
-        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_C_t, sigma_e, W, beta_tilde)
+        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde)
 
     #print mu_km_vec
 
@@ -90,15 +121,17 @@ def dp_term(m, A, gamma_k):
     return sum
 
 
-def compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_C_t, sigma_e, W, beta_tilde):
+def compute_mu_sigma_km(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde):
 
     sigma_km = 1/(1/sigma_k + 1/sigma_e)
 
     # slow way
     W_m = W[:, m]
 
+    gamma_C_t = np.sum(np.multiply(C_t, gamma_t), axis=1)
+
     r_m_1 = np.subtract(beta_tilde, np.matmul(W, gamma_C_t))
-    r_m_2 = np.multiply(W_m, np.sum(gamma_C_t[m]))
+    r_m_2 = np.multiply(W_m, gamma_t[m, k])
 
     r_m = np.add(r_m_1, r_m_2)
 
@@ -129,10 +162,9 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
     # start chain
     p_t = p_init
 
-    C_km = C_init
+    C_t = C_init
 
-    gamma_km = gamma_init
-    gamma_C_t = np.sum(np.multiply(C_km, gamma_km), axis=1)
+    gamma_t = gamma_init
 
     # start sampler
     logging.info("Starting sampler")
@@ -141,36 +173,35 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
             for k in range(0, K): # loop through K mixture components
 
                 # compute posterior mean and variance
-                mu_km, sigma_km = compute_mu_sigma_km(m, mu_vec[k], sigma_vec[k], psi[m], A, gamma_C_t, sigma_e, W, beta_tilde)
+                mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
                 #print "mu_km: %.4g" % mu_km
                 #print "simga_km: %.4g" % sigma_km
 
                 # sample effect sizes from the posterior
-                gamma_km[m,k] = st.norm.rvs(mu_km, sigma_km)
+                print "K: %d, mu: %.4g, sigma: %.4g" % (k, mu_km, sigma_km)
+                gamma_t[m,k] = st.norm.rvs(mu_km, sigma_km)
                 #print "gamma_km: %.4g" % gamma_km[m,k]
                 #print C_km
                 #print gamma_km
-                gamma_t_C = np.sum(np.multiply(C_km, gamma_km), axis=1)
 
             # sample mixture assignments
 
             #print "SNP %d" % m
-            q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_C_t, sigma_e, W, beta_tilde)
+            q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+            print q_km
 
-            #print q_km
             C  = st.multinomial.rvs(n=1, p=q_km, size=1)
 
             # update C_t
             C = C.ravel()
             for k in range(0,K):
-                C_km[m,k] = C[k]
-
-            gamma_C_t = np.sum(np.multiply(C_km, gamma_km), axis=1)
+                C_t[m,k] = C[k]
+                gamma_t[m,k] = C[k]*gamma_t[m,k]
 
             # end loop through K clusters
         # end loop through SNPs
 
-        alpha = np.add(np.sum(C_km, axis=0), np.ones(K))
+        alpha = np.add(np.sum(C_t, axis=0), np.ones(K))
 
         p_t = st.dirichlet.rvs(alpha)
         p_t = p_t.ravel()
@@ -181,12 +212,14 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
         logging.info("Iteration %d - log_like: %.4g" % (i, log_like))
         print p_t
 
-    # end loop iterations
+    # end loop
 
     BURN = its/4
     p_est = np.mean(p_list[BURN:], axis=0)
 
-    return p_est
+    C_est = np.divide(np.sum(C_t, axis=0), float(M))
+
+    return p_est, C_est
 
 
 def precompute_terms(W, beta_tilde, name, outdir):
@@ -208,7 +241,8 @@ def initialize_p(K):
     # random draw to initialize values
     p_init = np.random.dirichlet([1]*K,1)
     p_init = p_init.ravel()
-    #p_init = [.5, .5]
+    # DEBUGGING
+    p_init = [.5, .5]
     return p_init
 
 
@@ -321,9 +355,14 @@ def main():
     # calculate sigma_e
     sigma_e = (1-ldsc_h2)/float(N)
 
-    p_est = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its)
+    p_est, C_est = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its)
     print "Estimate: "
     print p_est
+
+    print "C-Estimate: "
+    print C_est
+
+    print beta_tilde
 
 
 if __name__== "__main__":

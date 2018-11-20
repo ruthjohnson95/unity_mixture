@@ -93,6 +93,7 @@ def main():
     M = int(options.M)
     N = int(options.N)
     seed = int(options.seed)
+    np.random.seed(seed)
     outdir = options.outdir
     sigma_g = float(options.sigma_g)
 

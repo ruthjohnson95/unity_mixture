@@ -112,7 +112,7 @@ def main():
     parser.add_option("--outdir", dest="outdir", default="/Users/ruthiejohnson/Development/mixture_unity")
     parser.add_option("--its", dest="its", default=500)
     (options, args) = parser.parse_args()
-    
+
     # parse command line args
     seed = int(options.seed)
     its = int(options.its)
@@ -130,7 +130,7 @@ def main():
 
         # get LHS of bins
         a = -.50
-        b = .50 
+        b = .50
         step = (b-a)/float(bins)
         sigma_k = ((step*.5)/float(3))**2
         sigma_vec = np.repeat(sigma_k, bins)

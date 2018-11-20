@@ -22,13 +22,13 @@ SIM_NAME=test_identity
 P_VEC=".50,.50"
 BINS=3
 SIGMA_G=.50 
-MU_VEC="0,.50"
-SIGMA_VEC=".001,0.001"
-LD_FILE=${DATA_DIR}/identity.10.ld 
+MU_VEC="0.50,0"
+SIGMA_VEC=".00001,.00001"
 M=10
+LD_FILE=${DATA_DIR}/identity.${M}.ld 
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
-ITS=500
+ITS=10
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
