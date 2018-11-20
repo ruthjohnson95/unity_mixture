@@ -187,21 +187,22 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
         for m in range(0, M): # loop through M SNPs
             for k in range(0, K): # loop through K mixture components
 
-                # sample mixture assignments
-                q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
-                C  = st.multinomial.rvs(n=1, p=q_km, size=1)
-
-                # update C_t
-                C = C.ravel()
-                for k in range(0,K):
-                    C_t[m,k] = C[k]
-                    
                 # compute posterior mean and variance
                 mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
 
                 # sample effect sizes from the posterior
                 gamma_t[m,k] = st.norm.rvs(mu_km, sigma_km)
                 gamma_t[m,k] = C_t[m,k]*gamma_t[m,k]
+
+                # sample mixture assignments
+                q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+                C  = st.multinomial.rvs(n=1, p=q_km, size=1)
+
+                # update C_t
+                C = C.ravel()
+                #for k in range(0,K):
+                #    C_t[m,k] = C[k]
+                C_t[m,k] = C[k]
 
             # end loop through K clusters
         # end loop through SNPs

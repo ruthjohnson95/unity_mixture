@@ -10,6 +10,24 @@ import pandas as pd
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
+def truncate_matrix(V):
+    # make V pos-semi-def
+    d, Q = np.linalg.eigh(V, UPLO='U')
+
+    # reorder eigenvectors from inc to dec
+    idx = d.argsort()[::-1]
+    Q[:] = Q[:, idx]
+    #d[:] = d.argsort()[::-1]
+
+    # truncate small eigenvalues for stability
+    d_trun = truncate_eigenvalues(d)
+
+    # mult decomp back together to get final V_trunc
+    M1 = np.matmul(Q, np.diag(d_trun))
+    V_trun = np.matmul(M1, np.matrix.transpose(Q))
+
+    return V_trun
+
 
 def simulate_mixture(p_vec, mu_vec, sigma_vec, M, sigma_e, V):
     K = len(p_vec)
@@ -112,7 +130,10 @@ def main():
         V = np.eye(M)
     else:
         try:
-            V = np.loadtxt(ld_file)
+            V_raw = np.loadtxt(ld_file)
+            # truncate matrix to make pos-semi def
+            V = truncate_matrix(V_raw)
+
         except:
             logging.info("LD file does not exist...will simulate with no LD")
             V = np.eye(M)
