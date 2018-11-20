@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+"""
+    This program models the effect size distribution of effect sizes from GWAS summary statistics
+    through a mixture of Gaussians. The main parameter of interest is to estimate the proportion
+    of SNPs that correspond to each mixing component.
+
+    INPUT: standardized GWAS effect sizes
+    OUTPUT: proportion of SNPs per kth bin (p_k)
+"""
+
 from optparse import OptionParser
 import logging
 import sys
@@ -7,42 +16,46 @@ import numpy as np
 import scipy.stats as st
 import os
 import pandas as pd
+import math
 
 # global variables
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
+EXP_MAX = math.log(sys.float_info.max)
 
 def log_likelihood(beta_tilde, gamma, sigma_e, W):
     M = len(beta_tilde)
     mu = np.multiply(W, gamma)
     cov = np.multiply(np.eye(M), sigma_e)
-    print beta_tilde.shape
-    print mu.shape
-    print cov.shape
     st.multivariate_normal.logpdf(x=beta_tilde, mean=mu, cov=cov)
     return log_like
 
 
-def compute_sigma_e(p_vec, sigma_vec, M, N):
-    M_k = np.multiply(M, p_vec)
-    sigma_g = np.sum(np.multiply(M_k, sigma_vec))
-    sigma_e = (1-sigma_g)/float(N)
-    sigma_e = 1/float(N)
-    return sigma_e
-
-def compute_km_denom(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec):
+def compute_km_vec(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec):
     sum = 0
     K = len(mu_km_vec)
+    q_km_vec = np.empty(K)
+
     for k in range(0,K):
         sigma_k = sigma_vec[k]
         mu_k = mu_vec[k]
         var_term = np.sqrt(sigma_km_vec[k]/sigma_vec[k])
-        mean_term = np.exp((1/(2*sigma_km_vec[k]))*(mu_km_vec[k]**2) - (1/(2*sigma_k)*(mu_k**2)))
-        sum += p_vec[k]*var_term*mean_term
+        temp_term = ( (1/(2*sigma_km_vec[k])) * (mu_km_vec[k]*mu_km_vec[k]) ) - (1/(2*sigma_k)*(mu_k*mu_k))
+        if temp_term > EXP_MAX:
+            temp_term = EXP_MAX
+        try:
+            mean_term = np.exp(temp_term)
 
-    return sum
+        except:
+            print sigma_km_vec[k]
+            print compute_km_vec[k]
 
 
-def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, C_t, gamma_t, sigma_e):
+        q_km_vec[k] = p_vec[k]*var_term*mean_term
+
+    return q_km_vec
+
+
+def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_C_t, sigma_e, W, beta_tilde):
 
     # holds means and variances across K components (NOT SNPs)
     K = len(mu_vec)
@@ -53,22 +66,15 @@ def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, C_t, gamma_t, sigma_e
     for k in range(0, K):
         mu_k = mu_vec[k]
         sigma_k = sigma_vec[k]
-        C_k = C_t[:,k]
-        gamma_k = gamma_t
-        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_k, sigma_e)
+        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_C_t, sigma_e, W, beta_tilde)
 
     #print mu_km_vec
 
-    q_km_denom = compute_km_denom(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec)
+    q_km_vec = compute_km_vec(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec)
 
     for k in range(0, K):
-        var_term = np.sqrt(sigma_km_vec[k]/sigma_vec[k])
-        sigma_k = sigma_vec[k]
-        mu_k = mu_vec[k]
-        mean_term = np.exp((1/(2*sigma_km_vec[k]))*(mu_km_vec[k]**2) - (1/(2*sigma_k)*(mu_k**2)))
-
-        q_km_num = p_vec[k]*var_term*mean_term
-
+        q_km_num = q_km_vec[k]
+        q_km_denom = np.sum(q_km_vec)
         q_km = q_km_num/q_km_denom
         q_vec[k] = q_km
 
@@ -84,21 +90,33 @@ def dp_term(m, A, gamma_k):
     return sum
 
 
-def compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_k, sigma_e):
+def compute_mu_sigma_km(m, mu_k, sigma_k, psi_m, A, gamma_C_t, sigma_e, W, beta_tilde):
 
-    sigma_km = 1/(1/sigma_k + 1/sigma_e * A[m,m])
+    sigma_km = 1/(1/sigma_k + 1/sigma_e)
 
-    term1 = (sigma_km*mu_k)/sigma_k
-    term2 = sigma_km*sigma_e
-    dp = dp_term(m, A, gamma_k)
-    term3 = psi_m - dp
-    mu_km = term1 + term2*term3
+    # slow way
+    W_m = W[:, m]
+
+    r_m_1 = np.subtract(beta_tilde, np.matmul(W, gamma_C_t))
+    r_m_2 = np.multiply(W_m, np.sum(gamma_C_t[m]))
+
+    r_m = np.add(r_m_1, r_m_2)
+
+    r_m_T = np.transpose(r_m)
+    mu_km = sigma_km*((mu_k/sigma_k) + ((np.matmul(r_m_T, W_m))/sigma_e))
+
+    # faster way
+    #term1 = (sigma_km*mu_k)/sigma_k
+    #term2 = sigma_km*sigma_e
+    #dp = dp_term(m, A, gamma_k)
+    #term3 = psi_m - dp
+    #mu_km = term1 + term2*term3
 
     #print "mu_km - SNP %d: %.4g" % (m, mu_km )
     return mu_km, sigma_km
 
 
-def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, N, its):
+def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its):
 
     # get metadata
     K = len(mu_vec)
@@ -110,49 +128,54 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, 
 
     # start chain
     p_t = p_init
-    C_t = C_init
-    gamma_t = gamma_init
 
-    gamma_km = np.empty(K)
+    C_km = C_init
+
+    gamma_km = gamma_init
+    gamma_C_t = np.sum(np.multiply(C_km, gamma_km), axis=1)
 
     # start sampler
     logging.info("Starting sampler")
-    for i in range(0, its):
-        for m in range(0, M):
+    for i in range(0, its): # run for iterations
+        for m in range(0, M): # loop through M SNPs
+            for k in range(0, K): # loop through K mixture components
 
-            for k in range(0, K):
                 # compute posterior mean and variance
-                sigma_e = compute_sigma_e(p_t, sigma_vec, M, N)
-                mu_km, sigma_km = compute_mu_sigma_km(m, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, sigma_e)
+                mu_km, sigma_km = compute_mu_sigma_km(m, mu_vec[k], sigma_vec[k], psi[m], A, gamma_C_t, sigma_e, W, beta_tilde)
+                #print "mu_km: %.4g" % mu_km
+                #print "simga_km: %.4g" % sigma_km
 
-                gamma_km[k] = st.norm.rvs(mu_km, sigma_km)
+                # sample effect sizes from the posterior
+                gamma_km[m,k] = st.norm.rvs(mu_km, sigma_km)
+                #print "gamma_km: %.4g" % gamma_km[m,k]
+                #print C_km
+                #print gamma_km
+                gamma_t_C = np.sum(np.multiply(C_km, gamma_km), axis=1)
 
             # sample mixture assignments
+
             #print "SNP %d" % m
-            q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, C_t, gamma_t, sigma_e)
+            q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_C_t, sigma_e, W, beta_tilde)
+
             #print q_km
             C  = st.multinomial.rvs(n=1, p=q_km, size=1)
 
             # update C_t
             C = C.ravel()
-
             for k in range(0,K):
-            #    C_t[m,k] = C[k]
-                C_t[m,k] = C[k]
+                C_km[m,k] = C[k]
 
-            #print C
-            gamma_t[m] = np.sum(np.multiply(C, gamma_km))
-            #print gamma_t[m]
+            gamma_C_t = np.sum(np.multiply(C_km, gamma_km), axis=1)
 
             # end loop through K clusters
         # end loop through SNPs
 
-        alpha = np.add(np.sum(C_t, axis=0), np.ones(K))
+        alpha = np.add(np.sum(C_km, axis=0), np.ones(K))
+
         p_t = st.dirichlet.rvs(alpha)
         p_t = p_t.ravel()
         p_list.append(p_t)
 
-        sigma_e = compute_sigma_e(p_t, sigma_vec, M, N)
         #log_like = log_likelihood(beta_tilde, gamma_t, sigma_e, W)
         log_like = 0
         logging.info("Iteration %d - log_like: %.4g" % (i, log_like))
@@ -199,8 +222,6 @@ def initialize_C_gamma(p_init, mu_vec, sigma_vec, M):
     for k in range(0, K):
         gamma_init[:, k] = st.norm.rvs(mu_vec[k], sigma_vec[k], size=M)
 
-    gamma_init = np.sum(np.multiply(gamma_init, C_init), axis=1)
-
     return C_init, gamma_init
 
 
@@ -216,6 +237,7 @@ def main():
     parser.add_option("--seed", dest="seed", default=100)
     parser.add_option("--outdir", dest="outdir", default="/Users/ruthiejohnson/Development/mixture_unity")
     parser.add_option("--precompute", dest="precompute", default='y')
+    parser.add_option("--ldsc_h2", dest="ldsc_h2", default=0.50)
     parser.add_option("--its", dest="its", default=500)
     (options, args) = parser.parse_args()
 
@@ -227,14 +249,33 @@ def main():
     precompute = options.precompute
     gwas_file = options.gwas_file
     outdir = options.outdir
+    ldsc_h2 = float(options.ldsc_h2)
 
-    if options.bins is None:
+    if options.bins is None and options.mu_vec is not None and options.sigma_vec is not None: # user provides mean/variances for mixture components
         mu_vec = [float(item) for item in options.mu_vec.split(',')]
         sigma_vec = [float(item) for item in options.sigma_vec.split(',')]
-    else:
-        bins = int(bins)
-        # TODO
+    elif options.bins is not None: # create evenly spaced bins and use mean/variance computed from each bin size
+        bins = int(options.bins)
+        a = -.50 # LHS of interval
+        b = .50 # RHS of interval
+        step = (b-a)/float(bins)
+        sigma_k = ((step*.5)/float(3))**2
+        sigma_vec = np.repeat(sigma_k, bins)
+        mu_vec = np.empty(bins)
+        mu_vec_string = ""
 
+        # put mu vec into string for printing
+        for k in range(bins):
+            if k == 0:
+                mu_vec[k] = a + step*.50
+            else:
+                mu_vec[k] = mu_vec[k-1] + step
+            mu_vec_string+= (str(mu_vec[k]) +' ')
+    else:
+        logging.info("ERROR: user needs to specify mu/sigma or bins...exiting")
+        exit(1)
+
+    # read in transformed GWAS effect sizes
     logging.info("Reading in gwas file: %s" % gwas_file)
     df = pd.read_csv(gwas_file, sep=' ')
     beta_tilde = np.asarray(df['BETA_STD_I'])
@@ -242,6 +283,7 @@ def main():
     # set seed
     np.random.seed(seed)
 
+    # read in LD
     ld_half_file = options.ld_half_file
     W = np.loadtxt(ld_half_file)
     logging.info("Using ld half file: %s" % ld_half_file)
@@ -276,9 +318,13 @@ def main():
     logging.info("initializing C_k")
     C_init, gamma_init = initialize_C_gamma(p_init, mu_vec, sigma_vec, M)
 
-    p_est = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, W, A, psi, beta_tilde, N, its)
+    # calculate sigma_e
+    sigma_e = (1-ldsc_h2)/float(N)
+
+    p_est = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its)
     print "Estimate: "
     print p_est
+
 
 if __name__== "__main__":
   main()

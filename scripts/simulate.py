@@ -113,7 +113,7 @@ def main():
             logging.info("LD file does not exist...will simulate with no LD")
             V = np.eye(M)
 
-    # calculate sigma_e  
+    # calculate sigma_e
     sigma_e = (1-sigma_g)/N
 
     beta_hats = simulate_mixture(p_vec, mu_vec, sigma_vec, M, sigma_e, V)

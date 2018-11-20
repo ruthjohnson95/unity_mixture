@@ -7,7 +7,7 @@ STEPS=$1
 # default is all steps 
 if [ -z "$STEPS" ]
 then
-	STEPS="1,2,3,4,5,6,7"
+	STEPS="1,2,3,4"
 fi 
 
 # path to folder 
@@ -19,16 +19,16 @@ DATA_DIR=${MASTER_PATH}/data
 
 # simulation params 
 SIM_NAME=test_identity 
-P_VEC=".05,.05,.90"
+P_VEC=".50,.50"
 BINS=3
 SIGMA_G=.50 
-MU_VEC="0,0"
-SIGMA_VEC=".001,.1"
-LD_FILE=${DATA_DIR}/identity.1000.ld 
-M=1000
+MU_VEC="0,.50"
+SIGMA_VEC=".001,0.001"
+LD_FILE=${DATA_DIR}/identity.10.ld 
+M=10
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
-ITS=5
+ITS=500
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
@@ -47,8 +47,8 @@ if [[ "$STEPS" =~ "1" ]]
 then
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
 	echo $DATE" Simulting GWAS effect sizes"
-	#python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR
-	python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --bins $BINS --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR --sigma_g $SIGMA_G 
+	python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR
+	#python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --bins $BINS --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR --sigma_g $SIGMA_G 
 fi
 
 # STEP 2: transform betas 
