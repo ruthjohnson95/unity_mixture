@@ -10,6 +10,25 @@ import pandas as pd
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
+
+def truncate_eigenvalues(d):
+    M = len(d)
+
+    # order evaules in descending order
+    d[::-1].sort()
+
+    #running_sum = 0
+    d_trun = np.zeros(M)
+
+    # keep only positive evalues
+    for i in range(0,M):
+        if d[i] > 0:
+            # keep evalue
+            d_trun[i] = d[i]
+
+    return d_trun
+
+
 def truncate_matrix(V):
     # make V pos-semi-def
     d, Q = np.linalg.eigh(V, UPLO='U')
@@ -17,7 +36,6 @@ def truncate_matrix(V):
     # reorder eigenvectors from inc to dec
     idx = d.argsort()[::-1]
     Q[:] = Q[:, idx]
-    #d[:] = d.argsort()[::-1]
 
     # truncate small eigenvalues for stability
     d_trun = truncate_eigenvalues(d)
@@ -126,13 +144,15 @@ def main():
         exit(1)
 
     # simulate values
+    print ld_file
     if ld_file is None:
         V = np.eye(M)
     else:
         try:
-            V_raw = np.loadtxt(ld_file)
+            V = np.loadtxt(ld_file)
             # truncate matrix to make pos-semi def
-            V = truncate_matrix(V_raw)
+            #logging.info("Truncating matrix to ensure pos-semi-def")
+            #V = truncate_matrix(V_raw)
 
         except:
             logging.info("LD file does not exist...will simulate with no LD")
