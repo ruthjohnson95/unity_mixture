@@ -19,12 +19,12 @@ DATA_DIR=${MASTER_PATH}/data
 
 # simulation params 
 SIM_NAME=test_identity 
-P_VEC=".50,.50"
+P_VEC=".95,.05"
 BINS=3
 SIGMA_G=.50 
-MU_VEC="0.50,0"
-SIGMA_VEC=".00001,.00001"
-M=10
+MU_VEC="0,0.01"
+SIGMA_VEC=".00001,.001"
+M=100
 LD_FILE=${DATA_DIR}/identity.${M}.ld 
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
