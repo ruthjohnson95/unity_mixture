@@ -19,16 +19,16 @@ DATA_DIR=${MASTER_PATH}/data
 
 # simulation params 
 SIM_NAME=test_identity 
-P_VEC=".95,.05"
-BINS=3
+P_VEC=".5,.5"
+BINS=2
 SIGMA_G=.50 
-MU_VEC="0,0.01"
-SIGMA_VEC=".00001,.001"
-M=100
+MU_VEC="0.0,0.5"
+SIGMA_VEC=".000001,.000001"
+M=10
 LD_FILE=${DATA_DIR}/identity.${M}.ld 
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
-ITS=10
+ITS=100
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
@@ -73,6 +73,7 @@ if [[ "$STEPS" =~ "4" ]]
 then
 	LD_HALF_FILE=${LD_FILE%.*}.half_ld
 	python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'y' --its $ITS 
+	#python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'y' --its $ITS 
 
 fi 
 

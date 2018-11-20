@@ -18,7 +18,7 @@ TRAIT=$(basename $GWAS_FILE | cut -d'.' -f1)
 BINS=100
 N=100000
 SEED=2018 # can replace with SGE_TASK_ID
-ITS=1
+ITS=100
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}

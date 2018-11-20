@@ -25,6 +25,7 @@ def simulate_mixture(p_vec, mu_vec, sigma_vec, M, sigma_e, V):
     # only pick betas from chosen components
     beta_k = np.multiply(beta_k_matrix,  k_matrix)
 
+    print "True p"
     print np.divide(np.sum(k_matrix, axis=0), float(M))
 
     beta = np.sum(beta_k, axis=1)
@@ -72,8 +73,8 @@ def main():
             exit(1)
 
         # get LHS of bins
-        a = -1.0
-        b = 1.0
+        a = -.50
+        b = .50
         step = (b-a)/float(bins)
         sigma_k = ((step*.5)/float(3))**2
         sigma_vec = np.repeat(sigma_k, bins)
@@ -84,7 +85,9 @@ def main():
             else:
                 mu_vec[k] = mu_vec[k-1] + step
 
+        print "Sigma vec:"
         print sigma_vec
+        print "mu vec:"
         print mu_vec
 
 
