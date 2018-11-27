@@ -72,8 +72,9 @@ def simulate_mixture(p_vec, mu_vec, sigma_vec, M, sigma_e, V):
     cov = np.multiply(V, sigma_e)
 
     beta_hat = st.multivariate_normal.rvs(mu, cov)
+    beta_true = beta
 
-    df = {'BETA_STD': beta_hat}
+    df = {'BETA_STD': beta_hat, 'BETA_TRUE': beta_true}
     beta_hat_df = pd.DataFrame(data=df)
 
     return beta_hat_df
@@ -109,8 +110,8 @@ def main():
             exit(1)
 
         # get LHS of bins
-        a = -.50
-        b = .50
+        a = -.10
+        b = .10
         step = (b-a)/float(bins)
         sigma_k = ((step*.5)/float(3))**2
         sigma_vec = np.repeat(sigma_k, bins)
@@ -165,7 +166,7 @@ def main():
 
     # save to outfile
     outfile = os.path.join(outdir, outname + '.' + str(seed) + '.txt')
-    beta_hats.to_csv(outfile, index=False)
+    beta_hats.to_csv(outfile, index=False, sep=' ')
 
     logging.info("DONE...simulated files can be found at: %s" % outfile)
 

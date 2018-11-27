@@ -155,7 +155,7 @@ def compute_mu_sigma_km(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W,
     # faster way
     #term1 = (sigma_km*mu_k)/sigma_k
     #term2 = sigma_km*sigma_e
-    #dp = dp_term(m, A, gamma_k)
+    #dp = dp_term(m, A, gamma_C_t)
     #term3 = psi_m - dp
     #mu_km = term1 + term2*term3
 
@@ -175,6 +175,8 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
     p_list = []
     C_list = np.empty((M, K))
 
+    weights = np.zeros(M)
+
     # start chain
     p_t = p_init
     C_t = C_init
@@ -187,6 +189,14 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
         for m in range(0, M): # loop through M SNPs
             for k in range(0, K): # loop through K mixture components
 
+                # sample mixture assignments
+                q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+                C  = st.multinomial.rvs(n=1, p=q_km, size=1)
+
+                # update C_t
+                C = C.ravel()
+                C_t[m,k] = C[k]
+
                 # compute posterior mean and variance
                 mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
 
@@ -194,15 +204,6 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
                 gamma_t[m,k] = st.norm.rvs(mu_km, sigma_km)
                 gamma_t[m,k] = C_t[m,k]*gamma_t[m,k]
 
-                # sample mixture assignments
-                q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
-                C  = st.multinomial.rvs(n=1, p=q_km, size=1)
-
-                # update C_t
-                C = C.ravel()
-                #for k in range(0,K):
-                #    C_t[m,k] = C[k]
-                C_t[m,k] = C[k]
 
             # end loop through K clusters
         # end loop through SNPs
@@ -219,14 +220,18 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
         logging.info("Iteration %d - log_like: %.6g" % (i, log_like))
         print p_t
 
+        # compute weight for iteration
+        BURN = its/4
+        if i >= BURN:
+            weights[:] = np.add(weights, gamma_C_t)
+
     # end loop
 
-    BURN = its/4
     p_est = np.mean(p_list[BURN:], axis=0)
 
     C_est = np.divide(np.sum(C_t, axis=0), float(M))
 
-    return p_est, C_est
+    return p_est, C_est, weights
 
 
 """
@@ -306,8 +311,8 @@ def main():
         sigma_vec = [float(item) for item in options.sigma_vec.split(',')]
     elif options.bins is not None: # create evenly spaced bins and use mean/variance computed from each bin size
         bins = int(options.bins)
-        a = -.50 # LHS of interval
-        b = .50 # RHS of interval
+        a = -.10 # LHS of interval
+        b = .10 # RHS of interval
         step = (b-a)/float(bins)
         sigma_k = ((step*.5)/float(3))**2
         sigma_vec = np.repeat(sigma_k, bins)
@@ -373,7 +378,7 @@ def main():
     # calculate sigma_e
     sigma_e = (1-ldsc_h2)/float(N)
 
-    p_est, C_est = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its)
+    p_est, C_est, weights = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its)
     print "Estimate: "
     print p_est
 
@@ -381,6 +386,17 @@ def main():
     print C_est
 
     #print beta_tilde
+    BURN = its/4
+    weights_est = np.divide(weights, its-BURN)
+
+    #try:
+    weights_true = np.asarray(df['BETA_TRUE'])
+    accuracy = np.corrcoef(weights_true, weights_est)
+    print "Accuracy:"
+    print accuracy[0,1]
+    #except:
+    #    pass
+
 
 
 if __name__== "__main__":
