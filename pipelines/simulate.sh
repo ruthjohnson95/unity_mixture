@@ -27,8 +27,8 @@ DATA_DIR=${MASTER_PATH}/data
 # simulation params
 # simulation params
 SIM_NAME=test_identity
-P_VEC="0.05,.05,.80,.05,.05"
-BINS=5
+P_VEC="0.01,.01,0.05,.05,.76,.05,.05,0.01,0.01"
+BINS=9
 LDSC_H2=.50
 MU_VEC="-.10,-0.05,0,.05,.10"
 SIGMA_VEC=".000001,.000001,.0000001,.000001,.000001"
@@ -38,7 +38,7 @@ COEF=0.9
 #LD_FILE=${DATA_DIR}/simulated_${COEF}.${M}.txt
 N=100000
 SEED=$SEED # can replace with SGE_TASK_ID
-ITS=100
+ITS=200
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
