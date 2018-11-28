@@ -3,6 +3,7 @@
 
 # select steps of the pipeline
 STEPS=$1
+SEED=$2
 
 # default is all steps
 if [ -z "$STEPS" ]
@@ -30,7 +31,7 @@ LD_FILE=${DATA_DIR}/ukbb.${M}.ld
 #COEF=0.8
 #LD_FILE=${DATA_DIR}/simulated_${COEF}.${M}.txt
 N=100000
-SEED=2018 # can replace with SGE_TASK_ID
+SEED=$SEED # can replace with SGE_TASK_ID
 ITS=100
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
