@@ -11,6 +11,28 @@ import pandas as pd
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
 
+def simulate_ld(M):
+    d = np.random.random(M)
+    V = np.diag(d)
+
+    # decreasing values along the diagonal
+    for m in range(0, M):
+        center = V[m,m]
+        power = 0
+        for l in range(m, M):
+            V[m, l] = center ** power
+            power += 1
+    # reflect to bottom triangluar
+    for i in range(M):
+        for j in range(i, M):
+            V[j][i] = V[i][j]
+
+    # ensure pos-semi ef
+    V[:] = truncate_matrix(V)
+
+    return V
+
+
 def truncate_eigenvalues(d):
     M = len(d)
 
