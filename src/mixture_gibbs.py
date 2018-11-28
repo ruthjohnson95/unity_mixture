@@ -24,6 +24,15 @@ logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:
 EXP_MAX = math.log(sys.float_info.max)
 EXP_MIN = math.log(sys.float_info.min)
 
+"""
+    prints both to console and to outfile with file descriptor f
+"""
+def print_func(line, f):
+    print(line)
+    sys.stdout.flush()
+    f.write(line)
+    f.write('\n')
+    return
 
 """
     Computes log-likelihood of GWAS effect sizes given latent variables
@@ -311,6 +320,10 @@ def main():
     outdir = options.outdir
     ldsc_h2 = float(options.ldsc_h2)
 
+    # log file
+    outfile=os.path.join(outdir, name+'.'+str(seed)+'.BayesPred.log')
+    f = open(outfile, 'w')
+
     if options.bins is None and options.mu_vec is not None and options.sigma_vec is not None: # user provides mean/variances for mixture components
         mu_vec = [float(item) for item in options.mu_vec.split(',')]
         sigma_vec = [float(item) for item in options.sigma_vec.split(',')]
@@ -402,7 +415,7 @@ def main():
     #except:
     #    pass
 
-
+    f.close()
 
 if __name__== "__main__":
   main()
