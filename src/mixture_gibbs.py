@@ -174,7 +174,7 @@ def compute_mu_sigma_km(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W,
 """
     Main Gibbs sampler function
 """
-def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its):
+def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its, f):
 
     # get metadata
     K = len(mu_vec)
@@ -196,24 +196,32 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
     logging.info("Starting sampler")
     for i in range(0, its): # run for iterations
         for m in range(0, M): # loop through M SNPs
+
+            # temp vector to hold effect size estimates
+            gamma_temp = np.empty(K)
+
+            # sample gamma_t
             for k in range(0, K): # loop through K mixture components
+                # if SNP belongs to mixture K, otherwise effect is 0
+                if C_t[m,k] == 1:
+                    # compute posterior mean and variance
+                    mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
 
-                # compute posterior mean and variance
-                mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+                    # sample effect sizes from the posterior
+                    gamma_temp[k] = st.norm.rvs(mu_km, sigma_km)
+                    #gamma_t[m,k] = st.norm.rvs(mu_km, sigma_km)
+                else:
+                    #gamma_t[m,k] = 0
+                    gamma_temp[k] = 0
 
-                # sample effect sizes from the posterior
-                gamma_t[m,k] = st.norm.rvs(mu_km, sigma_km)
-                gamma_t[m,k] = C_t[m,k]*gamma_t[m,k]
+            # only update gamma_t after all K mixtures have been sampled
+            gamma_t[m,:] = gamma_temp
 
-                # sample mixture assignments
-                q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
-                C  = st.multinomial.rvs(n=1, p=q_km, size=1)
-
-                # update C_t
-                C = C.ravel()
-                #for k in range(0,K):
-                #    C_t[m,k] = C[k]
-                C_t[m,k] = C[k]
+            # sample mixture assignments
+            q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+            C  = st.multinomial.rvs(n=1, p=q_km, size=1)
+            C = C.ravel()
+            C_t[m,:] = C
 
             # end loop through K clusters
         # end loop through SNPs
@@ -231,8 +239,13 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
         gamma_C_t = np.sum(np.multiply(C_t, gamma_t),axis=1)
         log_like = log_likelihood(beta_tilde, gamma_C_t, sigma_e, W)
 
-        logging.info("Iteration %d - log_like: %.6g" % (i, log_like))
-        print p_t
+        p_t_string = ""
+        for p in p_t:
+            p_t_string+=(str(p)+' ')
+
+        print_func("Iteration %d: %s" % (i, p_t_string), f)
+        print_func("Iteration %d (log-like): %4g" % (i, log_like), f)
+
 
         # compute weight for iteration
         BURN = its/4
@@ -396,7 +409,7 @@ def main():
     # calculate sigma_e
     sigma_e = (1-ldsc_h2)/float(N)
 
-    p_est, C_est, weights = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its)
+    p_est, C_est, weights = gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, beta_tilde, N, its, f)
     print "Estimate: "
     print p_est
 
@@ -407,13 +420,25 @@ def main():
     BURN = its/4
     weights_est = np.divide(weights, its-BURN)
 
-    #try:
     weights_true = np.asarray(df['BETA_TRUE'])
     accuracy = np.corrcoef(weights_true, weights_est)
-    print "Accuracy:"
-    print accuracy[0,1]
-    #except:
-    #    pass
+
+    print_func("Accuracy: %.4g" % accuracy[0,1],f)
+
+    log_like = log_likelihood(beta_tilde, weights_est, sigma_e, W)
+    print_func("Log-like: %.4g" % log_like, f)
+
+    # save results in data-frames
+    df = {'mu': mu_vec, 'p': p_est}
+    results_df = pd.DataFrame(data=df)
+    results_file = os.path.join(outdir, name +'.'+str(seed)+'.results')
+    results_df.to_csv(results_file, index=False, sep=' ')
+
+    # save estimated effect sizes
+    df2 = {'weights': weights_est}
+    weights_df = pd.DataFrame(data=df2)
+    weights_file = os.path.join(outdir, name +'.'+str(seed)+'.weights')
+    weights_df.to_csv(weights_file, index=False, sep=' ')
 
     f.close()
 
