@@ -10,17 +10,6 @@ import pandas as pd
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
-"""
-    Computes log-likelihood of GWAS effect sizes given latent variables
-"""
-def log_likelihood(beta_tilde, gamma, sigma_e, W):
-    M = len(beta_tilde)
-    mu = np.multiply(W, gamma)[0]
-    cov = np.multiply(np.eye(M), sigma_e)
-    log_like = st.multivariate_normal.logpdf(x=beta_tilde, mean=mu, cov=cov)
-    return log_like
-
-
 def truncate_eigenvalues(d):
     M = len(d)
 
