@@ -241,7 +241,7 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
                 # if SNP belongs to mixture K, otherwise effect is 0
                 if C_t[m,k] == 1:
                     # compute posterior mean and variance
-                    mu_km, sigma_km = compute_mu_sigma_km_opt(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+                    mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
 
                     # sample effect sizes from the posterior
                     gamma_temp[k] = st.norm.rvs(mu_km, sigma_km)
