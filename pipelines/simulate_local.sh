@@ -30,19 +30,19 @@ SIM_NAME=test_identity
 #P_VEC=".002,.010,0,0,0,.988"
 #P_VEC="0,0.025,0.05,.10,.10,.72"
 #P_VEC="0,0,.3,.3,.3,.10"
-P_VEC=".75,.10,.10,.05"
+P_VEC=".80,.13,.05,.01"
 BINS=3
 SIGMA_G=.03
 MU_VEC="0,0,0,0"
 #SIGMA_VEC="0.01,0.001,0.0001,1e-05,1e-6,1e-10"
-SIGMA_VEC=".000000001,.00001,.01,.10"
-M=100
+SIGMA_VEC="1e-10,1e-4,1e-3,1e-2"
+M=1000
 LD_FILE=${DATA_DIR}/ukbb.${M}.ld
 #COEF=0.9
 #LD_FILE=${DATA_DIR}/simulated_${COEF}.${M}.txt
-N=100000
+N=1000000
 SEED=$SEED # can replace with SGE_TASK_ID
-ITS=100
+ITS=200
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
