@@ -129,8 +129,8 @@ def main():
         bins = int(options.bins)
 
         # get LHS of bins
-        a = -.50
-        b = .50
+        a = -.20
+        b = .20
         step = (b-a)/float(bins)
         sigma_k = ((step*.5)/float(3))**2
         sigma_vec = np.repeat(sigma_k, bins)
@@ -153,6 +153,7 @@ def main():
     print_func("Var of bins: %.4g" % sigma_vec[0], f)
 
     print_func("Reading in gwas file: %s" % gwas_file, f)
+
     df = pd.read_csv(gwas_file, sep=' ')
 
     ld_half_file = options.ld_half_file
@@ -165,7 +166,6 @@ def main():
 
     # set seed
     np.random.seed(seed)
-
 
     if ld_half_file is not None:
         W = np.loadtxt(ld_half_file)

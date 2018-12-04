@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 
 """
     This program models the effect size distribution of effect sizes from GWAS summary statistics
@@ -18,6 +18,7 @@ import os
 import pandas as pd
 import math
 from scipy.misc import logsumexp as logsumexp
+from sklearn.metrics import r2_score as r2_score
 
 # global variables
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
@@ -421,24 +422,28 @@ def main():
     weights_est = np.divide(weights, its-BURN)
 
     weights_true = np.asarray(df['BETA_TRUE'])
-    accuracy = np.corrcoef(weights_true, weights_est)
-
-    print_func("Accuracy: %.4g" % accuracy[0,1],f)
+    #accuracy = np.corrcoef(weights_true, weights_est)
+    accuracy = r2_score(weights_true, weights_est)
+    print_func("Accuracy: %.4g" % accuracy, f )
 
     log_like = log_likelihood(beta_tilde, weights_est, sigma_e, W)
     print_func("Log-like: %.4g" % log_like, f)
 
     # save results in data-frames
-    df = {'mu': mu_vec, 'p': p_est}
-    results_df = pd.DataFrame(data=df)
+    r_df = {'sigma': sigma_vec, 'p': p_est}
+    results_df = pd.DataFrame(data=r_df)
     results_file = os.path.join(outdir, name +'.'+str(seed)+'.results')
     results_df.to_csv(results_file, index=False, sep=' ')
 
     # save estimated effect sizes
-    df2 = {'weights': weights_est}
-    weights_df = pd.DataFrame(data=df2)
-    weights_file = os.path.join(outdir, name +'.'+str(seed)+'.weights')
-    weights_df.to_csv(weights_file, index=False, sep=' ')
+    #df2 = {'weights': weights_est}
+    #weights_df = pd.DataFrame(data=df2)
+    #weights_file = os.path.join(outdir, name +'.'+str(seed)+'.weights')
+    #weights_df.to_csv(weights_file, index=False, sep=' ')
+
+    # add weights to the dataframe
+    df['WEIGHTS'] = weights_est
+    df.to_csv(gwas_file, index=False, sep=' ')
 
     f.close()
 

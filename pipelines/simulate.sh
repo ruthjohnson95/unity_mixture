@@ -7,7 +7,7 @@ SEED=$2
 # default is all steps
 if [ -z "$STEPS" ]
 then
-	STEPS="1,2,3,4,8"
+	STEPS="1,2,3,5,9"
 fi
 
 # default is all steps
@@ -25,18 +25,18 @@ DATA_DIR=${MASTER_PATH}/data
 
 # simulation params
 SIM_NAME=test_identity
-P_VEC=".75,.10,.10,.05"
-BINS=2
+P_VEC="0.10,.80,.10"
+BINS=5
 LDSC_H2=.50
-MU_VEC="0,0,0,0"
-SIGMA_VEC=".000000001,.00001,.01,.10"
-M=1000
+MU_VEC="0,0,0"
+SIGMA_VEC=".000000001,.01,.10"
+M=100
 LD_FILE=${DATA_DIR}/ukbb.${M}.ld
 #COEF=0
 #LD_FILE=${DATA_DIR}/simulated_${COEF}.${M}.txt
-N=1000000
+N=10000000
 SEED=$SEED # can replace with SGE_TASK_ID
-ITS=100
+ITS=2000
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
@@ -76,7 +76,7 @@ then
 fi
 
 # STEP 7: Calculate true log-likelihood
-if [[ "$STEPS" =~ "8" ]]
+if [[ "$STEPS" =~ "4" ]]
 then
 	LD_HALF_FILE=${LD_FILE%.*}.half_ld
 	python ${SCRIPT_DIR}/true_likelihood.py --name $SIM_NAME --gwas_file $GWAS_FILE --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --ldsc_h2 $LDSC_H2
@@ -84,7 +84,7 @@ fi
 
 
 # STEP 4: run inference (with LD)
-if [[ "$STEPS" =~ "4" ]]
+if [[ "$STEPS" =~ "5" ]]
 then
 	LD_HALF_FILE=${LD_FILE%.*}.half_ld
 	python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'y' --its $ITS --ldsc_h2 $LDSC_H2
@@ -93,23 +93,55 @@ then
 fi
 
 
-# STEP 5: run inference (with NO LD)
-if [[ "$STEPS" =~ "5" ]]
+# STEP 1: simulate gwas with NO ld
+#if [[ "$STEPS" =~ "0" ]]
+#then
+#	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+#	echo $DATE" Simulting GWAS effect sizes with NO LD"
+	#python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --bins $BINS --M $M --N $N --seed $SEED --outdir $DATA_DIR --sigma_g $LDSC_H2
+#fi
+
+# STEP 1: simulate gwas with LD then prune
+if [[ "$STEPS" =~ "0" ]]
 then
-	python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $SIGMA_G
+	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+	echo $DATE" Simulting GWAS effect sizes with LD"
+	python ${SCRIPT_DIR}/simulate.py --name $SIM_NAME --p_vec $P_VEC --bins $BINS --ld_file $LD_FILE --M $M --N $N --seed $SEED --outdir $DATA_DIR --sigma_g $LDSC_H2
+
+	# prune by taking subset of SNPs
+	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+	echo $DATE" Pruning by LD"
+	WINDOW=10
+	python ${SCRIPT_DIR}/prune_ld.py --gwas_file $GWAS_FILE --window $WINDOW
+fi
+
+# STEP 5: run inference (with NO LD)
+if [[ "$STEPS" =~ "6" ]]
+then
+	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+	echo $DATE" Starting inference with NO LD"
+	python ${SRC_DIR}/mixture_em_noLD.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --N $N --seed $SEED --outdir $DATA_DIR  --its $ITS --ldsc_h2 $LDSC_H2
 fi
 
 
 # Step 6: plot gwas effect size histogram
-if [[ "$STEPS" =~ "6" ]]
+if [[ "$STEPS" =~ "7" ]]
 then
 	python ${SCRIPT_DIR}/plot_histogram.py --name $SIM_NAME --gwas_file $GWAS_FILE --outdir ${DATA_DIR}
 fi
 
 
 # Step 7: plot binned effect size histogram
-if [[ "$STEPS" =~ "7" ]]
+if [[ "$STEPS" =~ "8" ]]
 then
 	RESULTS_FILE=${DATA_DIR}/${SIM_NAME}.${SEED}.results
 	python ${SCRIPT_DIR}/plot_EM_histogram.py --name $SIM_NAME --results_file $RESULTS_FILE --outdir ${DATA_DIR}
+fi
+
+# Step 9: calculate prs estiamtes
+if [[ "$STEPS" =~ "9" ]]
+then
+	N_pred=100
+	MAF=.50
+	python ${SCRIPT_DIR}/calc_prs.py --M $M --N $N_pred --maf $MAF --gwas_file $GWAS_FILE --outdir $DATA_DIR
 fi
