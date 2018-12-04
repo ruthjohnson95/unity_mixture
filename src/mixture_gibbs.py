@@ -19,6 +19,7 @@ import pandas as pd
 import math
 from scipy.misc import logsumexp as logsumexp
 from sklearn.metrics import r2_score as r2_score
+import cProfile, pstats, StringIO
 
 # global variables
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
@@ -108,7 +109,7 @@ def compute_km_vec(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec):
 """
     Computes parameters for posterior distriubtion of mixture assignments (C_k)
 """
-def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde):
+def compute_q_km(k, m, mu_km_vec, sigma_km_vec, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde):
 
     # holds means and variances across K components (NOT SNPs)
     K = len(mu_vec)
@@ -116,10 +117,11 @@ def compute_q_km(k, m, p_vec, mu_vec, sigma_vec, psi_m, A, gamma_t, C_t, sigma_e
     sigma_km_vec = np.empty((K,1))
     q_vec=np.zeros(K)
 
+    #print mu_km_vec
     for k in range(0, K):
         mu_k = mu_vec[k]
         sigma_k = sigma_vec[k]
-        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde)
+        mu_km_vec[k], sigma_km_vec[k] = compute_mu_sigma_km_opt(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde)
 
     q_km_vec = compute_km_vec(mu_km_vec, sigma_km_vec, mu_vec, sigma_vec, p_vec)
 
@@ -172,6 +174,81 @@ def compute_mu_sigma_km(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W,
     return mu_km, sigma_km
 
 
+def compute_mu_sigma_allK_opt(m, mu_vec, sigma_vec, psi, A, gamma_t, C_t, sigma_e, W, beta_tilde):
+    K = len(mu_vec)
+    M = len(beta_tilde)
+    mu_km_vec = np.empty(K)
+    sigma_km_vec = np.empty(K)
+
+    for k in range(0, K):
+        sigma_k = sigma_vec[k]
+        mu_k = mu_vec[k]
+
+        sigma_km = 1/(1/sigma_k + 1/sigma_e)
+
+        W_m = W[:, m]
+        psi_m = psi[m]
+
+        sum = 0
+        nonzero_inds = np.where(C_t[:,-1] == 0)[0]
+        for i in nonzero_inds:
+            a_im = A[i,m]
+            if i!=m:
+                sum += a_im * np.sum(gamma_t[m,-1:])
+
+        dp_term = psi_m - sum
+        mu_km = sigma_km*((mu_k/sigma_k) + ((dp_term)/sigma_e))
+
+        mu_km_vec[k] = mu_km
+        sigma_km_vec[k] = sigma_km
+
+    return mu_km_vec, sigma_km_vec
+
+
+def compute_mu_sigma_km_opt(m, k, mu_k, sigma_k, psi_m, A, gamma_t, C_t, sigma_e, W, beta_tilde):
+
+    sigma_km = 1/(1/sigma_k + 1/sigma_e)
+
+    M = len(beta_tilde)
+
+    # slow way
+    W_m = W[:, m]
+    #gamma_C_t = np.sum(np.multiply(C_t, gamma_t), axis=1)
+
+    #r_m_1 = np.subtract(beta_tilde, np.matmul(W, gamma_C_t))
+    #r_m_2 = np.multiply(W_m, gamma_t[m, k])
+    #r_m = np.add(r_m_1, r_m_2)
+    #r_m_T = np.transpose(r_m)
+
+    sum = 0
+
+    """
+    nonzero_inds = np.where(C_t[:,-1] == 0)[0]
+    for i in nonzero_inds:
+        a_im = A[i,m]
+        if i!=m:
+            sum += a_im * np.sum(gamma_t[m,-1:])
+            #print gamma_t[m,-1:]
+    """
+
+    for i in range(0, M):
+        a_im = A[i,m]
+        sum += a_im * np.sum(gamma_t[m,:])
+
+    dp_term = psi_m - sum
+
+    mu_km = sigma_km*((mu_k/sigma_k) + ((dp_term)/sigma_e))
+
+    # faster way
+    #term1 = (sigma_km*mu_k)/sigma_k
+    #term2 = sigma_km*sigma_e
+    #dp = dp_term(m, A, gamma_C_t)
+    #term3 = psi_m - dp
+    #mu_km = term1 + term2*term3
+
+    return mu_km, sigma_km
+
+
 """
     Main Gibbs sampler function
 """
@@ -195,6 +272,10 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
 
     # start sampler
     logging.info("Starting sampler")
+
+    pr = cProfile.Profile()
+    pr.enable()
+
     for i in range(0, its): # run for iterations
         for m in range(0, M): # loop through M SNPs
 
@@ -202,11 +283,13 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
             gamma_temp = np.empty(K)
 
             # sample gamma_t
+            mu_k_vec, sigma_k_vec = compute_mu_sigma_allK_opt(m, mu_vec, sigma_vec, psi, A, gamma_t, C_t, sigma_e, W, beta_tilde)
+
             for k in range(0, K): # loop through K mixture components
                 # if SNP belongs to mixture K, otherwise effect is 0
                 if C_t[m,k] == 1:
                     # compute posterior mean and variance
-                    mu_km, sigma_km = compute_mu_sigma_km(m, k, mu_vec[k], sigma_vec[k], psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+                    mu_km, sigma_km = mu_k_vec[k], sigma_k_vec[k]
 
                     # sample effect sizes from the posterior
                     gamma_temp[k] = st.norm.rvs(mu_km, sigma_km)
@@ -219,7 +302,7 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
             gamma_t[m,:] = gamma_temp
 
             # sample mixture assignments
-            q_km = compute_q_km(k, m, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
+            q_km = compute_q_km(k, m, mu_k_vec, sigma_k_vec, p_t, mu_vec, sigma_vec, psi[m], A, gamma_t, C_t, sigma_e, W, beta_tilde)
             C  = st.multinomial.rvs(n=1, p=q_km, size=1)
             C = C.ravel()
             C_t[m,:] = C
@@ -238,7 +321,8 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
         p_list.append(p_t)
 
         gamma_C_t = np.sum(np.multiply(C_t, gamma_t),axis=1)
-        log_like = log_likelihood(beta_tilde, gamma_C_t, sigma_e, W)
+        #log_like = log_likelihood(beta_tilde, gamma_C_t, sigma_e, W)
+        log_like = 0
 
         p_t_string = ""
         for p in p_t:
@@ -254,6 +338,12 @@ def gibbs(p_init, gamma_init, C_init, mu_vec, sigma_vec, sigma_e, W, A, psi, bet
             weights[:] = np.add(weights, gamma_C_t)
 
     # end loop
+    pr.disable()
+    s = StringIO.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print s.getvalue()
 
     p_est = np.mean(p_list[BURN:], axis=0)
 

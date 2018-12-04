@@ -30,19 +30,19 @@ SIM_NAME=test_identity
 #P_VEC=".002,.010,0,0,0,.988"
 #P_VEC="0,0.025,0.05,.10,.10,.72"
 #P_VEC="0,0,.3,.3,.3,.10"
-P_VEC=".80,.13,.05,.01"
+P_VEC=".01,.05,.13,.80"
 BINS=3
 SIGMA_G=.03
 MU_VEC="0,0,0,0"
 #SIGMA_VEC="0.01,0.001,0.0001,1e-05,1e-6,1e-10"
-SIGMA_VEC="1e-10,1e-4,1e-3,1e-2"
-M=1000
+SIGMA_VEC="1e-2,1e-3,1e-4,1e-10"
+M=100
 LD_FILE=${DATA_DIR}/ukbb.${M}.ld
 #COEF=0.9
 #LD_FILE=${DATA_DIR}/simulated_${COEF}.${M}.txt
 N=1000000
 SEED=$SEED # can replace with SGE_TASK_ID
-ITS=200
+ITS=100
 
 DATE=`date '+%Y-%m-%d %H:%M:%S'`
 echo $DATE" Starting simulation for unity-mixture: "${SIM_NAME}
@@ -86,7 +86,7 @@ fi
 if [[ "$STEPS" =~ "4" ]]
 then
 	LD_HALF_FILE=${LD_FILE%.*}.half_ld
-	python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'y' --its $ITS
+	python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --mu_vec $MU_VEC --sigma_vec $SIGMA_VEC --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'n' --its $ITS
 	#python ${SRC_DIR}/mixture_gibbs.py --name $SIM_NAME --gwas_file $GWAS_FILE --bins $BINS --ld_half_file $LD_HALF_FILE --N $N --seed $SEED --outdir $DATA_DIR --precompute 'y' --its $ITS
 
 fi
