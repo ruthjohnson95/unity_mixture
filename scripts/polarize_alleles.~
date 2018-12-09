@@ -1,0 +1,6 @@
+library(stringr)
+library(data.table)
+
+numextract <- function(string){ 
+  str_extract(string, "\\-*\\d+\\.*\\d*")
+} 

@@ -1,0 +1,59 @@
+#!/usr/bin/env sh
+#$ -cwd
+#$ -j y
+#$ -l h_data=64G,h_rt=5:00:00,highp
+#$ -o prepare_sumstats.log
+#$ -t 1-110:1
+
+#SGE_TASK_ID=1
+
+# hoffman paths
+source /u/local/Modules/default/init/modules.sh
+module load python/2.7
+module load R 
+
+MASTER_PATH=/u/home/r/ruthjohn/ruthjohn/BayesPred/unity_mixture
+
+SCRIPT_DIR=${MASTER_PATH}/scripts
+RESULTS_DIR=${MASTER_PATH}/trait_results
+LDSC_DIR=${SCRIPT_DIR}/ldsc
+HM3_SNPLIST=${LDSC_DIR}/eur_w_ld_chr/w_hm3.snplist
+REF_LD_CHR=${LDSC_DIR}/eur_w_ld_chr/
+#DATA_DIR=${MASTER_PATH}/traits 
+DATA_DIR=/u/home/r/ruthjohn/ruthjohn/UNITY_analyses/data/clean_gwas
+
+RESULTS_DIR=${MASTER_PATH}/results 
+
+MRCA_DIR=${MASTER_PATH}/misc/chimp_alleles
+TRAIT_LIST=${MASTER_PATH}/misc/trait_list.txt 
+
+# loop thorugh all traits 
+while read TRAIT
+do
+
+	TRAIT_DIR=${RESULTS_DIR}/$TRAIT
+	mkdir -p $TRAIT_DIR
+
+	GWAS_FILE=${DATA_DIR}/$TRAIT.txt 
+
+    # clean sumstats for ldsc 
+#    python $LDSC_DIR/munge_sumstats.py --sumstats $gwas_file --N $N --out $RESULTS_DIR --merge-allele $HM3_SNPLIST --ignore BETA,OR,SE,BETA_STD --maf-min 0 # NOTE: maf set to 0 bc want to leave SNPs with large effects 
+
+    # run ldsc for h2 estimate
+#    python $LDSC_DIR/ldsc.py --h2 ${OUTDIR}/$TRAIT.sumstats.gz --ref-ld-chr $REF_LD_CHR --w-ld-chr $REF_LD_CHR --out $RESULTS_DIR 
+
+	for CHR in {1..22}
+	do
+	        COUNTER=$((COUNTER+1))
+		if [[ $COUNTER -eq $SGE_TASK_ID ]]
+		then
+
+		    MRCA_CHR_FILE=${MRCA_DIR}/chr${CHR}.txt 
+
+                    # flip alleles according to most-recent common ancestor (chimp)
+		    Rscript ${SCRIPT_DIR}/polarize_alleles.R --gwas_file $GWAS_FILE --chr $CHR --mrca_chr_file $MRCA_CHR_FILE --outdir $TRAIT_DIR
+		fi
+	done
+
+done < $TRAIT_LIST
+

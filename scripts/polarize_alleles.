@@ -1,0 +1,40 @@
+library(stringr)
+library(data.table)
+library(dplyr)
+
+numextract <- function(string){ 
+  str_extract(string, "\\-*\\d+\\.*\\d*")
+} 
+
+# gwas data
+gwas=fread(gwas_file, header=T) # assumes SNP, CHR, A1
+
+# make empty dataframe for polar_gwas 
+
+
+# loop through chomosomes 
+
+chr=22
+
+# mrca file for chri
+mrca_file=
+
+mrca=fread(mrca_file, header=F)
+colnames(mrca) <- c("CHR", "SNP", "AA")
+
+# only use chromosome number 
+mrca$CHR <- numextract(mrca$CHR)
+
+# only look at gwas chri
+chr_inds = which(gwas$CHR == chr)
+gwas_i = gwas[chr_inds]
+
+# convert to uppercase bc fread is weird 
+mrca$AA <- lapply(mrca$AA,toupper)
+
+# use all common variables across two tables (SNP, CHR)
+gwas_i = inner_join(gwas_i, mrca, by=NULL)
+
+# this is a terrible way to merge dataframes 
+polar_gwas <- rbind(polar_gwas, gwas_i)
+
